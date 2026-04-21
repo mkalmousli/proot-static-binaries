@@ -1,0 +1,76 @@
+name: build-and-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            container: alpine:3.20
+            packages: "build-base git linux-headers file musl-dev"
+          - arch: aarch64
+            container: messense/musl-cross:aarch64-musl
+            packages: "make git file"
+          - arch: armv7
+            container: messense/musl-cross:armv7-musleabihf
+            packages: "make git file"
+    container:
+      image: ${{ matrix.container }}
+    steps:
+      - name: Install dependencies (alpine)
+        if: startsWith(matrix.container, 'alpine:')
+        run: apk add --no-cache ${{ matrix.packages }}
+
+      - name: Install dependencies (debian-like)
+        if: ${{ !startsWith(matrix.container, 'alpine:') }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ${{ matrix.packages }} ca-certificates
+
+      - uses: actions/checkout@v4
+
+      - name: Build static proot
+        env:
+          PROOT_REF: master
+        run: ./scripts/build-static.sh ${{ matrix.arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proot-${{ matrix.arch }}
+          path: dist/proot-${{ matrix.arch }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Flatten assets
+        run: |
+          mkdir -p dist
+          cp release-assets/proot-x86_64/proot-x86_64 dist/
+          cp release-assets/proot-aarch64/proot-aarch64 dist/
+          cp release-assets/proot-armv7/proot-armv7 dist/
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/proot-x86_64
+            dist/proot-aarch64
+            dist/proot-armv7
