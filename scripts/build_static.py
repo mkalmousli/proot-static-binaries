@@ -17,6 +17,7 @@ from pathlib import Path
 
 ALPINE_VERSION = "3.20.5"
 PROOT_REF = os.environ.get("PROOT_REF", "master")
+QEMU_REF = os.environ.get("QEMU_REF", "v9.0.2")
 
 
 @dataclass(frozen=True)
@@ -27,21 +28,9 @@ class Target:
 
 
 TARGETS = {
-    "x86_64": Target("x86_64", "x86_64", "qemu-x86_64-static"),
-    "aarch64": Target("aarch64", "aarch64", "qemu-aarch64-static"),
-    "armv7": Target("armv7", "armv7", "qemu-arm-static"),
-}
-
-PROOT_URLS = {
-    "x86_64": "https://github.com/termux/proot-static-build/releases/download/v5.4.0/proot-x86_64",
-    "aarch64": "https://github.com/termux/proot-static-build/releases/download/v5.4.0/proot-aarch64",
-    "armv7": "https://github.com/termux/proot-static-build/releases/download/v5.4.0/proot-arm",
-}
-
-QEMU_URLS = {
-    "x86_64": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-x86_64-static",
-    "aarch64": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static",
-    "armv7": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-arm-static",
+    "x86_64": Target("x86_64", "x86_64", "qemu-x86_64"),
+    "aarch64": Target("aarch64", "aarch64", "qemu-aarch64"),
+    "armv7": Target("armv7", "armv7", "qemu-arm"),
 }
 
 
@@ -130,37 +119,16 @@ def resumable_download(url: str, full_dir: Path, part_dir: Path, force: bool = F
     return final_path
 
 
-def prepare_proot(cache: CacheLayout, force: bool) -> Path:
-    host = detect_host_arch()
-    url = PROOT_URLS[host]
-    proot = resumable_download(url, cache.download_full, cache.download_part, force=force)
-    target = cache.tooling / "proot"
-    if force or not target.exists():
-        shutil.copy2(proot, target)
-        target.chmod(0o755)
-    return target
-
-
-def prepare_qemu(cache: CacheLayout, target: Target, force: bool) -> Path:
-    url = QEMU_URLS[target.name]
-    qemu = resumable_download(url, cache.download_full, cache.download_part, force=force)
-    out = cache.tooling / target.qemu_name
-    if force or not out.exists():
-        shutil.copy2(qemu, out)
-        out.chmod(0o755)
-    return out
-
-
-def prepare_source(cache: CacheLayout, force: bool) -> Path:
-    src_dir = cache.sources / f"proot-{PROOT_REF}"
+def prepare_source_archive(cache: CacheLayout, repo: str, ref: str, force: bool) -> Path:
+    src_dir = cache.sources / f"{repo}-{ref}"
     if src_dir.exists() and not force:
         print(f"Using cached source: {src_dir}")
         return src_dir
 
-    archive_url = f"https://github.com/proot-me/proot/archive/refs/heads/{PROOT_REF}.tar.gz"
-    archive = resumable_download(archive_url, cache.download_full, cache.download_part, force=force)
+    url = f"https://github.com/{repo}/archive/refs/{'heads' if not ref.startswith('v') else 'tags'}/{ref}.tar.gz"
+    archive = resumable_download(url, cache.download_full, cache.download_part, force=force)
 
-    tmp_dir = Path(tempfile.mkdtemp(prefix="src-", dir=cache.temps))
+    tmp_dir = Path(tempfile.mkdtemp(prefix=f"src-{repo.replace('/', '-')}-", dir=cache.temps))
     with tarfile.open(archive, "r:gz") as tf:
         tf.extractall(tmp_dir)
 
@@ -170,6 +138,71 @@ def prepare_source(cache: CacheLayout, force: bool) -> Path:
     shutil.move(str(extracted), src_dir)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     return src_dir
+
+
+def prepare_proot(cache: CacheLayout, force: bool) -> Path:
+    source = prepare_source_archive(cache, "proot-me/proot", PROOT_REF, force)
+    out_bin = cache.tooling / "proot"
+    stamp = cache.state / f"proot-{PROOT_REF}.built"
+
+    if out_bin.exists() and stamp.exists() and not force:
+        print(f"Using cached built proot: {out_bin}")
+        return out_bin
+
+    run(["make", "-C", str(source / "src"), "clean"])
+    run(["make", "-C", str(source / "src"), "proot"])
+
+    built = source / "src" / "proot"
+    if not built.exists():
+        raise RuntimeError(f"Failed to build host proot from source: {built}")
+
+    shutil.copy2(built, out_bin)
+    out_bin.chmod(0o755)
+    stamp.write_text("ok\n", encoding="utf-8")
+    return out_bin
+
+
+def prepare_qemu(cache: CacheLayout, force: bool) -> Path:
+    source = prepare_source_archive(cache, "qemu/qemu", QEMU_REF, force)
+    build_dir = cache.tooling / f"qemu-build-{QEMU_REF}"
+    install_dir = cache.tooling / f"qemu-install-{QEMU_REF}"
+    stamp = cache.state / f"qemu-{QEMU_REF}.built"
+
+    need = force or not stamp.exists()
+    required_bins = [install_dir / "bin" / t.qemu_name for t in TARGETS.values()]
+    if not all(p.exists() for p in required_bins):
+        need = True
+
+    if not need:
+        print(f"Using cached built qemu-user: {install_dir}")
+        return install_dir
+
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    if install_dir.exists():
+        shutil.rmtree(install_dir)
+    build_dir.mkdir(parents=True, exist_ok=True)
+
+    run([
+        "python3",
+        str(source / "configure"),
+        "--target-list=x86_64-linux-user,aarch64-linux-user,arm-linux-user",
+        "--disable-system",
+        "--enable-linux-user",
+        "--disable-tools",
+        "--disable-docs",
+        "--disable-werror",
+        f"--prefix={install_dir}",
+    ], cwd=build_dir)
+    run(["make", "-C", str(build_dir), "-j", str(os.cpu_count() or 2)])
+    run(["make", "-C", str(build_dir), "install"])
+
+    for required in required_bins:
+        if not required.exists():
+            raise RuntimeError(f"Missing built qemu binary: {required}")
+
+    stamp.write_text("ok\n", encoding="utf-8")
+    return install_dir
 
 
 def prepare_rootfs(cache: CacheLayout, target: Target, force: bool) -> Path:
@@ -230,13 +263,13 @@ def build_target(project_root: Path, cache: CacheLayout, target: Target, force: 
         print(f"Skipping {target.name}; output already exists: {output_bin}")
         return
 
+    host_arch = detect_host_arch()
     proot_bin = prepare_proot(cache, force=force)
-    qemu_bin = None
-    if target.name != detect_host_arch():
-        qemu_bin = prepare_qemu(cache, target, force=force)
+    qemu_install = prepare_qemu(cache, force=force)
+    qemu_bin = None if target.name == host_arch else (qemu_install / "bin" / target.qemu_name)
 
     rootfs = prepare_rootfs(cache, target, force=force)
-    source = prepare_source(cache, force=force)
+    source = prepare_source_archive(cache, "proot-me/proot", PROOT_REF, force)
 
     work_target = cache.temps / f"work-{target.name}"
     if work_target.exists():
@@ -277,7 +310,7 @@ def build_target(project_root: Path, cache: CacheLayout, target: Target, force: 
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build static proot binaries with proot+alpine+qemu")
+    parser = argparse.ArgumentParser(description="Build static proot binaries with source-built proot+qemu")
     parser.add_argument("--arch", choices=sorted(TARGETS.keys()), help="single target arch")
     parser.add_argument("--all", action="store_true", help="build all target architectures")
     parser.add_argument("--force", action="store_true", help="force refresh downloads/build artifacts")

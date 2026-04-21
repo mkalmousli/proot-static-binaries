@@ -21,6 +21,23 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            make \
+            file \
+            pkg-config \
+            git \
+            ninja-build \
+            meson \
+            bison \
+            flex \
+            libglib2.0-dev \
+            libpixman-1-dev \
+            zlib1g-dev
+
       - name: Restore cache
         uses: actions/cache@v4
         with:

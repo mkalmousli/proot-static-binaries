@@ -8,10 +8,10 @@ The build pipeline is Python-driven and runs on standard GitHub Ubuntu runners (
 
 For each target architecture, the builder:
 
-- Downloads static host `proot`
+- Clones `proot` source and builds host `proot` locally
+- Clones `qemu` source and builds `qemu-user` emulators locally
 - Downloads architecture-specific Alpine minirootfs
-- Downloads `qemu-*-static` when emulation is needed
-- Boots target Alpine under `proot` (with `-q qemu-*` for foreign arch)
+- Boots target Alpine under the source-built host `proot` (with source-built `qemu-*` for foreign arch)
 - Installs build dependencies via `apk`
 - Builds `proot` statically in that environment
 - Publishes `dist/proot-<arch>` as release artifacts
@@ -24,7 +24,7 @@ Everything is stored under `.Cache/`:
 - `.Cache/Downloads/Full` - completed downloads
 - `.Cache/Temps` - temporary working directories
 - `.Cache/Sources` - cached source trees
-- `.Cache/Tooling` - cached runtime tools (`proot`, `qemu-*`)
+- `.Cache/Tooling` - cached source-built runtime tools (`proot`, `qemu-*`)
 - `.Cache/Rootfs` - extracted Alpine rootfs per architecture
 - `.Cache/State` - future metadata/state files
 
