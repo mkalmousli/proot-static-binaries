@@ -3,6 +3,12 @@ name: Build and Release
 on:
   schedule:
     - cron: '0 0 * * *'
+  push:
+    branches:
+      - master
+    paths:
+      - 'build.py'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       force:
@@ -45,7 +51,8 @@ jobs:
           NEXT_VERSION=$((VERSION_NUM + 1))
           
           SHOULD_BUILD="true"
-          if [[ "${{ github.event.inputs.force }}" != "true" ]]; then
+          # Only skip on scheduled runs if no updates are found
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.inputs.force }}" != "true" ]]; then
             if [[ "$LATEST_BODY" == *"$PROOT_COMMIT"* ]] && [[ "$LATEST_BODY" == *"$QEMU_COMMIT"* ]]; then
               echo "No updates found in proot or qemu since last release ($LATEST_TAG)."
               SHOULD_BUILD="false"
