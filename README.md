@@ -1,65 +1,42 @@
 # proot-static-binaries
 
-Builds static `proot` binaries for multiple Linux architectures and publishes them as GitHub release assets.
+Build static `proot` binaries for `x86_64`, `aarch64`, and `armv7`.
 
-## How it works
+## Build
 
-The build pipeline is Python-driven and runs on standard GitHub Ubuntu runners (no Docker job containers).
+Run one target:
 
-For each target architecture, the builder:
+```bash
+python3 build.py --arch x86_64
+```
 
-- Clones `proot` source and builds host `proot` locally
-- Clones `qemu` source and builds `qemu-user` emulators locally
-- Downloads architecture-specific Alpine minirootfs
-- Boots target Alpine under the source-built host `proot` (with source-built `qemu-*` for foreign arch)
-- Installs build dependencies via `apk`
-- Builds `proot` statically in that environment
-- Publishes `dist/proot-<arch>` as release artifacts
+Run all targets:
 
-## Smart/resumable cache layout
+```bash
+python3 build.py --all
+```
 
-Everything is stored under `.Cache/`:
+The script uses the host CPU count automatically for build jobs and runs all requested targets concurrently by default. It resolves upstream `HEAD` to explicit commit archives instead of downloading branch names, and you can override that with `PROOT_COMMIT` or `QEMU_COMMIT`. It is Ubuntu-aware and installs missing host dependencies automatically.
+
+## Cache layout
 
 - `.Cache/Downloads/Part` - resumable partial downloads
 - `.Cache/Downloads/Full` - completed downloads
-- `.Cache/Temps` - temporary working directories
-- `.Cache/Sources` - cached source trees
-- `.Cache/Tooling` - cached source-built runtime tools (`proot`, `qemu-*`)
-- `.Cache/Rootfs` - extracted Alpine rootfs per architecture
-- `.Cache/State` - future metadata/state files
+- `.Cache/Temps` - temporary work dirs
+- `.Cache/Sources` - source trees
+- `.Cache/Tooling` - built host tooling (`proot`, `qemu-*`)
+- `.Cache/Rootfs` - extracted Alpine rootfs per target arch
 
-The script reuses existing artifacts automatically and skips work when outputs already exist.
+## Release
 
-## Build locally
-
-Single arch:
-
-```bash
-python3 scripts/build_static.py --arch x86_64
-```
-
-All arches:
-
-```bash
-python3 scripts/build_static.py --all
-```
-
-Force refresh:
-
-```bash
-python3 scripts/build_static.py --all --force
-```
-
-## Release usage
-
-Push a tag like:
+Push a tag:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Release assets are named:
+Release assets:
 
 - `proot-x86_64`
 - `proot-aarch64`
