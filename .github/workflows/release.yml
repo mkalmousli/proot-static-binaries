@@ -12,35 +12,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: x86_64
-            container: alpine:3.20
-            packages: "build-base git linux-headers file musl-dev"
-          - arch: aarch64
-            container: messense/musl-cross:aarch64-musl
-            packages: "make git file"
-          - arch: armv7
-            container: messense/musl-cross:armv7-musleabihf
-            packages: "make git file"
-    container:
-      image: ${{ matrix.container }}
+        arch: [x86_64, aarch64, armv7]
     steps:
-      - name: Install dependencies (alpine)
-        if: startsWith(matrix.container, 'alpine:')
-        run: apk add --no-cache ${{ matrix.packages }}
-
-      - name: Install dependencies (debian-like)
-        if: ${{ !startsWith(matrix.container, 'alpine:') }}
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ${{ matrix.packages }} ca-certificates
-
       - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: .Cache
+          key: ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ hashFiles('scripts/build_static.py') }}
+          restore-keys: |
+            ${{ runner.os }}-proot-cache-${{ matrix.arch }}-
+            ${{ runner.os }}-proot-cache-
 
       - name: Build static proot
         env:
           PROOT_REF: master
-        run: ./scripts/build-static.sh ${{ matrix.arch }}
+        run: python3 scripts/build_static.py --arch ${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -2,15 +2,53 @@
 
 Builds static `proot` binaries for multiple Linux architectures and publishes them as GitHub release assets.
 
-## What this repo does
+## How it works
 
-- Builds `proot` from upstream source (`proot-me/proot`)
-- Produces statically linked binaries for:
-  - `x86_64`
-  - `aarch64`
-  - `armv7`
-- Uploads build outputs as workflow artifacts
-- Publishes binaries to GitHub Releases when a tag is pushed
+The build pipeline is Python-driven and runs on standard GitHub Ubuntu runners (no Docker job containers).
+
+For each target architecture, the builder:
+
+- Downloads static host `proot`
+- Downloads architecture-specific Alpine minirootfs
+- Downloads `qemu-*-static` when emulation is needed
+- Boots target Alpine under `proot` (with `-q qemu-*` for foreign arch)
+- Installs build dependencies via `apk`
+- Builds `proot` statically in that environment
+- Publishes `dist/proot-<arch>` as release artifacts
+
+## Smart/resumable cache layout
+
+Everything is stored under `.Cache/`:
+
+- `.Cache/Downloads/Part` - resumable partial downloads
+- `.Cache/Downloads/Full` - completed downloads
+- `.Cache/Temps` - temporary working directories
+- `.Cache/Sources` - cached source trees
+- `.Cache/Tooling` - cached runtime tools (`proot`, `qemu-*`)
+- `.Cache/Rootfs` - extracted Alpine rootfs per architecture
+- `.Cache/State` - future metadata/state files
+
+The script reuses existing artifacts automatically and skips work when outputs already exist.
+
+## Build locally
+
+Single arch:
+
+```bash
+python3 scripts/build_static.py --arch x86_64
+```
+
+All arches:
+
+```bash
+python3 scripts/build_static.py --all
+```
+
+Force refresh:
+
+```bash
+python3 scripts/build_static.py --all --force
+```
 
 ## Release usage
 
@@ -26,11 +64,3 @@ Release assets are named:
 - `proot-x86_64`
 - `proot-aarch64`
 - `proot-armv7`
-
-## Local build
-
-The repo is designed for CI builds in containers. Local manual build is possible with:
-
-```bash
-scripts/build-static.sh x86_64
-```
