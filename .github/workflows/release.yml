@@ -42,12 +42,13 @@ jobs:
           echo "Current qemu commit: $QEMU_COMMIT"
           
           # Get latest release info
+          # If no releases exist, NEXT_VERSION will be 1
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
           LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name // "v0"')
           LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""')
           
-          # Extract version number
-          VERSION_NUM=${LATEST_TAG#v}
+          # Extract version number (handles both vN and N)
+          VERSION_NUM=$(echo "${LATEST_TAG#v}" | grep -E '^[0-9]+$' || echo "0")
           NEXT_VERSION=$((VERSION_NUM + 1))
           
           SHOULD_BUILD="true"
@@ -66,7 +67,7 @@ jobs:
 
   build:
     needs: check-updates
-    if: needs: check-updates.outputs.should_build == 'true'
+    if: needs.check-updates.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -123,6 +124,8 @@ jobs:
   release:
     needs: [check-updates, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
