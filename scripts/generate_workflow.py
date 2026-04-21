@@ -1,4 +1,8 @@
-name: Build and Release
+#!/usr/bin/env python3
+import os
+from pathlib import Path
+
+WORKFLOW_YAML = """name: Build and Release
 
 on:
   schedule:
@@ -80,8 +84,8 @@ jobs:
       - name: Install host build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential make file pkg-config git ninja-build meson bison flex \
+          sudo apt-get install -y --no-install-recommends \\
+            build-essential make file pkg-config git ninja-build meson bison flex \\
             libglib2.0-dev libpixman-1-dev zlib1g-dev
 
       - name: Restore cache
@@ -131,3 +135,14 @@ jobs:
             - qemu: ${{ needs.check-updates.outputs.qemu_commit }}
             - Build Date: $(date -u +'%Y-%m-%d %H:%M:%S' UTC)
           files: release-assets/*
+"""
+
+def main():
+    root = Path(__file__).resolve().parent.parent
+    workflow_path = root / ".github" / "workflows" / "release.yml"
+    workflow_path.parent.mkdir(parents=True, exist_ok=True)
+    workflow_path.write_text(WORKFLOW_YAML, encoding="utf-8")
+    print(f"Generated {workflow_path.relative_to(root)}")
+
+if __name__ == "__main__":
+    main()

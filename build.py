@@ -509,7 +509,8 @@ def source_ready(repo: str, src_dir: Path) -> bool:
 def source_archive_url(repo: str, ref: str) -> str:
     if is_commitish(ref):
         return f"https://github.com/{repo}/archive/{ref}.tar.gz"
-    return f"https://github.com/{repo}/archive/refs/{"tags" if ref.startswith("v") else "heads"}/{ref}.tar.gz"
+    kind = 'tags' if ref.startswith('v') else 'heads'
+    return f"https://github.com/{repo}/archive/refs/{kind}/{ref}.tar.gz"
 
 
 def prepare_source_archive(cache: CacheLayout, repo: str, ref: str, force: bool) -> Path:
