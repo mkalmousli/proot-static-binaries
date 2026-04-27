@@ -13,9 +13,8 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / ".site-build"
-RELEASES_DIR = OUT_DIR / "releases"
 ASSET_PREFIX = "proot-"
 ARCHES = ("x86_64", "aarch64", "armv7")
 LIBCS = ("musl", "gnu")
@@ -26,9 +25,9 @@ CSS = """
   color-scheme: dark;
   --bg: #0a0b0d;
   --panel: #121418;
-  --panel-2: #0f1114;
+  --panel-2: #0e1114;
   --text: #eef1f4;
-  --muted: #98a0aa;
+  --muted: #99a1aa;
   --line: #2a313a;
 }
 
@@ -43,9 +42,9 @@ body {
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a {
@@ -54,43 +53,33 @@ a {
 }
 
 .shell {
-  width: min(1560px, calc(100% - 0.75rem));
+  width: min(1500px, calc(100% - 0.75rem));
   margin: 0 auto;
   padding: 0.35rem 0 0.75rem;
 }
 
 .hero,
-.panel,
-.detail {
+.release {
   border: 1px solid var(--line);
   background: var(--panel);
-}
-
-.hero,
-.panel,
-.detail {
   border-radius: 0;
 }
 
 .hero {
-  padding: 1.4rem;
+  padding: 1.25rem;
   margin-bottom: 0.4rem;
+}
+
+.release {
+  padding: 1rem 1.05rem;
+  margin-top: 0.4rem;
 }
 
 .hero-top {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(310px, 0.95fr);
-  gap: 1.1rem;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+  gap: 1rem;
   align-items: start;
-}
-
-.hero.tight {
-  margin-top: 0.5rem;
-}
-
-.panel,
-.detail {
-  padding: 1rem 1.05rem;
 }
 
 .eyebrow,
@@ -115,15 +104,15 @@ p {
 }
 
 h1 {
-  font-size: clamp(2.6rem, 7vw, 5.2rem);
+  font-size: clamp(2.5rem, 6vw, 5rem);
   line-height: 0.94;
   letter-spacing: -0.04em;
 }
 
 .lede {
   margin-top: 0.8rem;
-  max-width: 60ch;
-  font-size: clamp(1rem, 1.35vw, 1.2rem);
+  max-width: 68ch;
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
   line-height: 1.45;
 }
 
@@ -153,91 +142,59 @@ h1 {
   word-break: break-word;
 }
 
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.85rem;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0.25rem 0.55rem;
-  border: 1px solid var(--line);
-  background: #101317;
-  font-size: 0.9rem;
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.2rem;
-  padding: 0.28rem 0.75rem;
-  border: 1px solid var(--line);
-  background: #171a20;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
 .hero-links,
 .meta-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
+  gap: 0.55rem;
   margin-top: 0.8rem;
-  font-size: 0.95rem;
 }
 
-.hero-links a,
-.meta-links a,
-.section-head a,
-.version-row {
+.pill,
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.15rem;
+  padding: 0.26rem 0.7rem;
+  border: 1px solid var(--line);
+  background: #101317;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.hero-link {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
 
-.section-head {
+.versions {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.release-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.7rem;
 }
 
-.section-head h2 {
+.release-head h2 {
   font-size: 0.95rem;
   letter-spacing: 0.02em;
   text-transform: lowercase;
 }
 
-.version-list {
-  display: grid;
-}
-
-.version-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.7fr) minmax(160px, 0.6fr) 120px;
-  gap: 0.75rem;
+.release-title {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 0.68rem 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.95rem;
+  gap: 0.45rem;
 }
 
-.version-row:first-child {
-  border-top: 0;
-}
-
-.version-row strong {
-  display: block;
-  font-size: 1.02rem;
-}
-
-.version-row .current-tag {
+.current-tag {
   display: inline-flex;
-  margin-left: 0.45rem;
   padding: 0.1rem 0.35rem;
   border: 1px solid var(--line);
   background: var(--panel-2);
@@ -247,94 +204,69 @@ h1 {
   text-transform: uppercase;
 }
 
-.version-row .commit,
-.version-row .date {
-  color: var(--muted);
-}
-
-.version-row .actions {
-  justify-self: end;
-}
-
-.detail {
-  display: grid;
-  gap: 1rem;
-}
-
-.detail-grid {
+.release-meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
+  margin: 0.8rem 0 0.9rem;
 }
 
-.downloads {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+.release-meta .meta-box {
+  min-width: 0;
 }
 
-.libc-grid {
+.tables {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-.matrix {
+table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--panel-2);
   border: 1px solid var(--line);
+  background: var(--panel-2);
 }
 
-.matrix caption {
+caption {
   padding: 0.75rem 0.8rem 0.5rem;
   text-align: left;
   font-size: 0.95rem;
-  letter-spacing: 0.02em;
   text-transform: lowercase;
 }
 
-.matrix th,
-.matrix td {
+th,
+td {
   padding: 0.62rem 0.8rem;
   border-top: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
 }
 
-.matrix th {
+th {
   color: var(--muted);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.matrix td.size,
-.matrix td.download {
+td.size,
+td.download {
   white-space: nowrap;
 }
 
-.matrix td.download {
+td.download {
   text-align: right;
 }
 
-.matrix .muted-cell {
+.muted-cell {
   color: var(--muted);
 }
 
-.note {
-  max-width: 68ch;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .hero-top,
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .libc-grid {
+  .release-meta,
+  .tables {
     grid-template-columns: 1fr;
   }
 }
@@ -346,22 +278,12 @@ h1 {
   }
 
   .hero,
-  .panel,
-  .detail {
+  .release {
     padding: 0.8rem;
   }
 
   h1 {
-    font-size: clamp(2.3rem, 14vw, 3.4rem);
-  }
-
-  .version-row {
-    grid-template-columns: 1fr;
-    gap: 0.15rem;
-  }
-
-  .version-row .actions {
-    justify-self: start;
+    font-size: clamp(2.2rem, 14vw, 3.5rem);
   }
 }
 """.strip()
@@ -472,19 +394,11 @@ def human_size(size: Any) -> str:
         value = float(size)
     except (TypeError, ValueError):
         return "unknown"
-    units = ["B", "KiB", "MiB", "GiB"]
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            if unit == "B":
-                return f"{int(value)} B"
-            return f"{value:.1f} {unit}"
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if value < 1024 or unit == "GiB":
+            return f"{int(value)} B" if unit == "B" else f"{value:.1f} {unit}"
         value /= 1024
     return "unknown"
-
-
-def slugify(tag: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", tag).strip("-")
-    return slug.lower() or "release"
 
 
 def body_value(release: dict[str, Any], key: str) -> str | None:
@@ -510,7 +424,10 @@ def build_date(release: dict[str, Any]) -> str:
     value = str(info.get("build_date") or "").strip()
     if value:
         return value
-    return body_value(release, "Build Date") or timestamp(str(release.get("published_at") or release.get("created_at") or ""))
+    value = body_value(release, "Build Date")
+    if value:
+        return value
+    return timestamp(str(release.get("published_at") or release.get("created_at") or ""))
 
 
 def asset_items(release: dict[str, Any]) -> list[dict[str, Any]]:
@@ -521,22 +438,17 @@ def asset_items(release: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def asset_label(name: str) -> str:
-    return " / ".join(name.removeprefix(ASSET_PREFIX).split("-"))
-
-
-def asset_links(release: dict[str, Any]) -> str:
-    assets = asset_items(release)
-    if not assets:
-        return '<p class="muted">No assets.</p>'
-    return "".join(
-        f'<a class="pill" href="{escape(str(asset["browser_download_url"]))}">{escape(asset_label(str(asset["name"])))}</a>'
-        for asset in assets
-    )
+def asset_map(release: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        str(asset.get("name") or ""): asset
+        for asset in asset_items(release)
+        if str(asset.get("name") or "")
+    }
 
 
 def artifact_rows(release: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]]]:
     rows: dict[str, dict[str, dict[str, Any]]] = {libc: {} for libc in LIBCS}
+    assets_by_name = asset_map(release)
     info = release_info(release)
     artifacts = info.get("artifacts")
     if isinstance(artifacts, list):
@@ -547,10 +459,13 @@ def artifact_rows(release: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]
             libc = str(item.get("libc") or "")
             if arch not in ARCHES or libc not in LIBCS:
                 continue
+            name = str(item.get("name") or f"proot-{arch}-{libc}")
+            asset = assets_by_name.get(name, {})
             rows[libc][arch] = {
-                "name": str(item.get("name") or f"proot-{arch}-{libc}"),
+                "name": name,
                 "size": item.get("size"),
-                "download_url": str(item.get("download_url") or ""),
+                "sha256": item.get("sha256"),
+                "download_url": str(item.get("download_url") or asset.get("browser_download_url") or ""),
             }
         if any(rows[libc] for libc in LIBCS):
             return rows
@@ -564,6 +479,7 @@ def artifact_rows(release: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]
         rows[libc][arch] = {
             "name": name,
             "size": asset.get("size"),
+            "sha256": None,
             "download_url": str(asset.get("browser_download_url") or ""),
         }
     return rows
@@ -571,11 +487,11 @@ def artifact_rows(release: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]
 
 def download_table(release: dict[str, Any], libc: str) -> str:
     rows = artifact_rows(release).get(libc, {})
-    body = []
+    rendered = []
     for arch in ARCHES:
         item = rows.get(arch)
         if item:
-            body.append(
+            rendered.append(
                 "<tr>"
                 f"<td>{escape(arch)}</td>"
                 f'<td class="size">{escape(human_size(item.get("size")))}</td>'
@@ -583,15 +499,16 @@ def download_table(release: dict[str, Any], libc: str) -> str:
                 "</tr>"
             )
         else:
-            body.append(
+            rendered.append(
                 "<tr>"
                 f"<td>{escape(arch)}</td>"
                 '<td class="size muted-cell">missing</td>'
                 '<td class="download muted-cell">-</td>'
                 "</tr>"
             )
+
     return f"""
-      <table class="matrix">
+      <table>
         <caption>{escape(libc)}</caption>
         <thead>
           <tr>
@@ -601,20 +518,20 @@ def download_table(release: dict[str, Any], libc: str) -> str:
           </tr>
         </thead>
         <tbody>
-          {''.join(body)}
+          {''.join(rendered)}
         </tbody>
       </table>
     """
 
 
-def page_shell(title: str, body: str, stylesheet_href: str) -> str:
+def page_shell(title: str, body: str) -> str:
     return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{escape(title)}</title>
-  <link rel="stylesheet" href="{stylesheet_href}">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 {body}
@@ -623,86 +540,53 @@ def page_shell(title: str, body: str, stylesheet_href: str) -> str:
 """
 
 
-def detail_page(release: dict[str, Any], repo_url: str) -> str:
+def release_section(release: dict[str, Any], repo_url: str, current: bool = False) -> str:
     tag_name = str(release.get("tag_name") or "release")
     tag = escape(tag_name)
     commit = escape(proot_commit(release))
     date = escape(build_date(release))
     release_url = f"{repo_url}/releases/tag/{tag_name}"
-    body = f"""
-  <main class="shell">
-    <section class="hero tight">
-      <p class="eyebrow">version</p>
-      <h1>{tag}</h1>
-      <p class="lede">Direct downloads, build metadata, and a release snapshot for this version.</p>
-      <div class="hero-links">
+    badge = '<span class="current-tag">current</span>' if current else ""
+
+    return f"""
+    <section class="release" id="{escape(tag_name)}">
+      <div class="release-head">
+        <div class="release-title">
+          <h2>{tag}{badge}</h2>
+        </div>
         <a class="button" href="{escape(release_url)}">open on github</a>
-        <a href="../index.html">home</a>
-        <a href="{repo_url}/releases">all releases</a>
       </div>
-      <div class="detail-grid">
-        <div class="meta-box"><span>tag</span><strong>{tag}</strong></div>
+      <div class="release-meta">
         <div class="meta-box"><span>proot commit</span><strong>{commit}</strong></div>
         <div class="meta-box"><span>build date</span><strong>{date}</strong></div>
-        <div class="meta-box"><span>github</span><strong>release page</strong></div>
+        <div class="meta-box"><span>tag</span><strong>{tag}</strong></div>
+        <div class="meta-box"><span>release</span><strong>download only</strong></div>
       </div>
-    </section>
-    <section class="detail">
-      <div class="section-head">
-        <h2>downloads</h2>
-      </div>
-      <div class="libc-grid">
+      <div class="tables">
         {download_table(release, "musl")}
         {download_table(release, "gnu")}
       </div>
     </section>
-  </main>
-"""
-    return page_shell(tag, body, "../style.css")
-
-
-def version_row_html(item: dict[str, Any], repo_url: str, current: bool = False) -> str:
-    tag_name = str(item.get("tag_name") or "release")
-    tag = escape(tag_name)
-    commit = escape(proot_commit(item))
-    date = escape(iso_date(str(item.get("published_at") or item.get("created_at") or "")))
-    history_link = f"releases/{slugify(tag_name)}.html"
-    github_link = f"{repo_url}/releases/tag/{tag_name}"
-    badge = '<span class="current-tag">current</span>' if current else ""
-    current_class = " current" if current else ""
-    return (
-        f'<div class="version-row{current_class}">'
-        f"<span><strong><a href=\"{escape(history_link)}\">{tag}</a>{badge}</strong></span>"
-        f'<span class="commit">{commit}</span>'
-        f'<span class="date">{date}</span>'
-        f'<span class="actions"><a class="button" href="{escape(github_link)}">github</a></span>'
-        "</div>"
-    )
+    """
 
 
 def index_page(releases_list: list[dict[str, Any]], repo_url: str) -> str:
     latest = releases_list[0] if releases_list else None
-
     if latest:
-        latest_tag_name = str(latest.get("tag_name") or "release")
-        latest_tag = escape(latest_tag_name)
+        latest_tag = escape(str(latest.get("tag_name") or "release"))
         latest_commit = escape(proot_commit(latest))
         latest_date = escape(build_date(latest))
-        latest_assets = asset_links(latest)
-        latest_detail = f'releases/{slugify(latest_tag_name)}.html'
-        latest_github = f"{repo_url}/releases/tag/{latest_tag_name}"
+        latest_github = f"{repo_url}/releases/tag/{str(latest.get('tag_name') or 'release')}"
     else:
         latest_tag = "release"
         latest_commit = "unknown"
         latest_date = "unknown"
-        latest_assets = '<p class="muted">No releases yet.</p>'
-        latest_detail = f"{repo_url}/releases"
         latest_github = f"{repo_url}/releases"
 
-    release_rows = "\n".join(
-        version_row_html(item, repo_url, current=index == 0)
-        for index, item in enumerate(releases_list)
-    ) if releases_list else '<p class="muted">No versions yet.</p>'
+    versions = "\n".join(
+        release_section(release, repo_url, current=index == 0)
+        for index, release in enumerate(releases_list)
+    ) if releases_list else '<p class="muted">No releases published yet.</p>'
 
     body = f"""
   <main class="shell">
@@ -711,34 +595,29 @@ def index_page(releases_list: list[dict[str, Any]], repo_url: str) -> str:
         <div>
           <p class="eyebrow">proot static binaries</p>
           <h1>{latest_tag}</h1>
-          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases. Each release page shows the exact commit, build date, file sizes, and direct downloads.</p>
+          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases. The page below lists every release directly, with commit, build date, download sizes, and links.</p>
           <div class="hero-links">
-            <a href="{latest_detail}">latest details</a>
-            <a class="button" href="{escape(latest_github)}">open release on github</a>
-          </div>
-          <div class="row">
-            {latest_assets}
+            <a class="hero-link" href="#versions">jump to versions</a>
+            <a class="button" href="{escape(latest_github)}">open latest on github</a>
           </div>
         </div>
         <div class="meta-stack">
-          <div class="meta-box"><span>proot commit</span><strong>{latest_commit}</strong></div>
-          <div class="meta-box"><span>build date</span><strong>{latest_date}</strong></div>
-          <div class="meta-box"><span>about</span><strong>static proot release build</strong></div>
+          <div class="meta-box"><span>latest proot commit</span><strong>{latest_commit}</strong></div>
+          <div class="meta-box"><span>latest build date</span><strong>{latest_date}</strong></div>
+          <div class="meta-box"><span>what this is</span><strong>static proot release builds</strong></div>
         </div>
       </div>
     </section>
-    <section class="panel">
-      <div class="section-head">
-        <h2>version history</h2>
-        <a href="{repo_url}/releases">github releases</a>
+    <section class="versions" id="versions">
+      <div class="release-head">
+        <h2>versions</h2>
+        <span class="muted">latest first</span>
       </div>
-      <div class="version-list">
-        {release_rows}
-      </div>
+      {versions}
     </section>
   </main>
 """
-    return page_shell("proot", body, "./style.css")
+    return page_shell("proot", body)
 
 
 def write_if_changed(path: Path, content: str) -> bool:
@@ -761,10 +640,6 @@ def main() -> int:
     changed |= write_if_changed(OUT_DIR / "style.css", CSS + "\n")
     changed |= write_if_changed(OUT_DIR / ".nojekyll", "")
     changed |= write_if_changed(OUT_DIR / "index.html", index_page(release_list, repo_url))
-
-    for release in release_list:
-        tag = str(release.get("tag_name") or "release")
-        changed |= write_if_changed(RELEASES_DIR / f"{slugify(tag)}.html", detail_page(release, repo_url))
 
     print(f"{'Generated' if changed else 'No changes for'} {OUT_DIR.relative_to(ROOT)}")
     return 0
