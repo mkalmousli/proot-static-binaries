@@ -757,7 +757,7 @@ def build_target(
     libc: str,
     force: bool,
     proot_bin: Path,
-    qemu_install: Path,
+    qemu_install: Path | None,
     target_index: int,
     target_total: int,
     dist_dir: Path,
@@ -766,7 +766,11 @@ def build_target(
     target_ctx = f"{ctx_step('target', target_index, target_total)}:{target.name}:{libc}"
 
     host_arch = detect_host_arch()
-    qemu_bin = None if target.name == host_arch else (qemu_install / "bin" / target.qemu_name)
+    qemu_bin = None
+    if target.name != host_arch:
+        if qemu_install is None:
+            raise RuntimeError(f"QEMU is required for cross-build to {target.name} but was not prepared")
+        qemu_bin = qemu_install / "bin" / target.qemu_name
 
     log("STEP", f"Preparing target environment: {target.name} ({libc})", ctx=target_ctx)
     rootfs = prepare_rootfs(cache, target, libc, force, ctx=f"{target_ctx}:{ctx_step('rootfs', 1, 3)}")
@@ -871,14 +875,19 @@ def main() -> int:
     dist_dir.mkdir(exist_ok=True, parents=True)
 
     targets = list(TARGETS.values()) if args.all else [TARGETS[args.arch]]
+    host_arch = detect_host_arch()
+    needs_qemu = any(t.name != host_arch for t in targets)
+    
+    tooling_total = 2 if needs_qemu else 1
     log("STEP", f"Preparing shared host tooling with {CPU_COUNT} jobs", ctx=ctx_step('host', 1, 2))
     
     parallel = max(1, args.parallel)
     with ThreadPoolExecutor(max_workers=parallel) as pool:
         fut_proot = pool.submit(prepare_proot, cache, args.force)
-        fut_qemu = pool.submit(prepare_qemu, cache, args.force)
+        fut_qemu = pool.submit(prepare_qemu, cache, args.force) if needs_qemu else None
+        
         proot_bin = fut_proot.result()
-        qemu_install = fut_qemu.result()
+        qemu_install = fut_qemu.result() if fut_qemu else None
 
     log("STEP", f"Starting target builds (parallel-targets={parallel}, jobs={CPU_COUNT})", ctx=ctx_step('host', 2, 2))
     with ThreadPoolExecutor(max_workers=parallel) as pool:
