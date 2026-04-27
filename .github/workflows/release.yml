@@ -96,6 +96,51 @@ jobs:
         id: meta
         shell: bash
         run: echo "build_date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+      - name: Build info manifest
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: v${{ needs.check-updates.outputs.next_version }}
+          PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
+          BUILD_DATE: ${{ steps.meta.outputs.build_date }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          release_dir = Path("release-assets")
+          artifacts = []
+          for path in sorted(release_dir.glob("proot-*")):
+              if not path.is_file():
+                  continue
+              parts = path.name.split("-", 2)
+              if len(parts) != 3:
+                  continue
+              arch = parts[1]
+              libc = parts[2]
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              artifacts.append({
+                  "name": path.name,
+                  "arch": arch,
+                  "libc": libc,
+                  "size": path.stat().st_size,
+                  "sha256": digest,
+              })
+
+          info = {
+              "repository": os.environ["REPOSITORY"],
+              "tag": os.environ["RELEASE_TAG"],
+              "proot_commit": os.environ["PROOT_COMMIT"],
+              "build_date": os.environ["BUILD_DATE"],
+              "generated_at": os.environ["BUILD_DATE"],
+              "artifacts": artifacts,
+          }
+
+          (release_dir / "info.json").write_text(json.dumps(info, indent=2) + "
+", encoding="utf-8")
+          PY
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -104,7 +149,6 @@ jobs:
           body: |
             Automated build of static proot binaries.
 
-            **Components:**
-            - proot: ${{ needs.check-updates.outputs.proot_commit }}
-            - Build Date: ${{ steps.meta.outputs.build_date }}
+            proot: ${{ needs.check-updates.outputs.proot_commit }}
+            Build Date: ${{ steps.meta.outputs.build_date }}
           files: release-assets/*
