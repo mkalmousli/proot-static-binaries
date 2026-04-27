@@ -253,6 +253,12 @@ h1 {
   margin-bottom: 0.4rem;
 }
 
+.snippet .note {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -433,26 +439,8 @@ def human_size(size: Any) -> str:
     return "unknown"
 
 
-def curl_script(repo: str) -> str:
-    return f"""repo="{repo}"
-arch="$(uname -m)"
-case "$arch" in
-  x86_64|amd64) arch="x86_64" ;;
-  aarch64|arm64) arch="aarch64" ;;
-  armv7l|armv7*) arch="armv7" ;;
-  *) echo "unsupported arch: $arch" >&2; exit 1 ;;
-esac
-
-libc="musl"
-if ldd --version 2>&1 | head -n1 | grep -qiE 'glibc|gnu'; then
-  libc="gnu"
-fi
-
-asset="proot-${{arch}}-${{libc}}"
-url="$(curl -fsSL "https://api.github.com/repos/${{repo}}/releases/latest" | sed -n "s/.*\\"browser_download_url\\": *\\"\\([^\\"]*${{asset}}[^\\"]*\\)\\".*/\\1/p" | head -n1)"
-curl -fsSL "$url" -o proot
-chmod +x proot
-"""
+def install_command(repo: str) -> str:
+    return f'curl -fsSL "https://raw.githubusercontent.com/{repo}/master/install.sh" | sh'
 
 
 def body_value(release: dict[str, Any], key: str) -> str | None:
@@ -646,11 +634,13 @@ def index_page(releases_list: list[dict[str, Any]], repo_url: str, repo_slug_val
           <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases.</p>
           <div class="hero-links">
             <a class="button" href="{escape(repo_url)}">github repo</a>
+            <a class="button" href="https://raw.githubusercontent.com/{escape(repo_slug_value)}/master/install.sh">install.sh</a>
           </div>
         </div>
         <div class="snippet">
-          <p class="eyebrow">quick curl</p>
-          <pre><code>{escape(curl_script(repo_slug_value))}</code></pre>
+          <p class="eyebrow">install</p>
+          <pre><code>{escape(install_command(repo_slug_value))}</code></pre>
+          <div class="note">Hosted installer that picks the right binary for your arch and libc.</div>
         </div>
       </div>
     </section>
