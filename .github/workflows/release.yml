@@ -16,6 +16,9 @@ on:
 permissions:
   contents: write
 
+env:
+  QEMU_VERSION: v11.0.0
+
 jobs:
   check-updates:
     runs-on: ubuntu-latest
@@ -89,13 +92,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .Cache
-          key: ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-${{ hashFiles('build.py') }}
+          key: ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-${{ env.QEMU_VERSION }}-${{ hashFiles('build.py') }}
           restore-keys: |
-            ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-
+            ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-${{ env.QEMU_VERSION }}-
       - name: Build static proot
         env:
           PROOT_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
+          QEMU_COMMIT: ${{ env.QEMU_VERSION }}
         run: |
           python3 build.py --arch ${{ matrix.arch }} --${{ matrix.libc }} --parallel 1
       - name: Upload artifact
@@ -128,6 +132,7 @@ jobs:
           RELEASE_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
+          QEMU_VERSION: ${{ env.QEMU_VERSION }}
           BUILD_DATE: ${{ steps.meta.outputs.build_date }}
         run: |
           python3 - <<'PY'
@@ -160,6 +165,7 @@ jobs:
               "tag": os.environ["RELEASE_TAG"],
               "proot_tag": os.environ["PROOT_TAG"],
               "proot_commit": os.environ["PROOT_COMMIT"],
+              "qemu_version": os.environ["QEMU_VERSION"],
               "build_date": os.environ["BUILD_DATE"],
               "generated_at": os.environ["BUILD_DATE"],
               "artifacts": artifacts,
@@ -177,6 +183,7 @@ jobs:
 
             proot tag: ${{ needs.check-updates.outputs.proot_tag }}
             proot commit: ${{ needs.check-updates.outputs.proot_commit }}
+            qemu version: ${{ env.QEMU_VERSION }}
             Build Date: ${{ steps.meta.outputs.build_date }}
           files: release-assets/*
 

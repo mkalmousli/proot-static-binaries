@@ -210,7 +210,7 @@ h1 {
 
 .release-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   margin: 0.7rem 0 0.65rem;
 }
@@ -464,6 +464,17 @@ def proot_commit(release: dict[str, Any]) -> str:
     return target if re.fullmatch(r"[0-9a-fA-F]{7,40}", target) else "unknown"
 
 
+def qemu_version(release: dict[str, Any]) -> str:
+    info = release_info(release)
+    value = str(info.get("qemu_version") or "").strip()
+    if value:
+        return value
+    value = body_value(release, "qemu version")
+    if value:
+        return value
+    return "unknown"
+
+
 def build_date(release: dict[str, Any]) -> str:
     info = release_info(release)
     value = str(info.get("build_date") or "").strip()
@@ -590,6 +601,7 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
     tag = escape(tag_name)
     commit_value = proot_commit(release)
     commit = escape(commit_value)
+    qemu = escape(qemu_version(release))
     date = escape(build_date(release))
     commit_link = (
         f'<a href="https://github.com/proot-me/proot/commit/{escape(commit_value)}">{commit}</a>'
@@ -609,6 +621,7 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
       </div>
       <div class="release-meta">
         <div class="meta-box"><span>proot commit</span><strong>{commit_link}</strong></div>
+        <div class="meta-box"><span>qemu version</span><strong>{qemu}</strong></div>
         <div class="meta-box"><span>build date</span><strong>{date}</strong></div>
         <div class="meta-box"><span>tag</span><strong>{tag}</strong></div>
       </div>
