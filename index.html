@@ -9,21 +9,21 @@
 <body>
 
   <main class="shell">
-    <section class="hero">
-      <div class="hero-top">
+    <section class="intro">
+      <div class="intro-top">
         <div>
           <p class="eyebrow">proot static binaries</p>
-          <h1>v1</h1>
-          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases. The page below lists every release directly, with commit, build date, download sizes, and links.</p>
+          <h1>proot static binaries</h1>
+          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases.</p>
           <div class="hero-links">
-            <a class="hero-link" href="#versions">jump to versions</a>
-            <a class="button" href="https://github.com/mkalmousli/proot-static-binaries/releases/tag/v1">open latest on github</a>
+            <a class="button" href="https://github.com/mkalmousli/proot-static-binaries">github repo</a>
+            <a class="button" href="https://raw.githubusercontent.com/mkalmousli/proot-static-binaries/master/install.sh">install.sh</a>
           </div>
         </div>
-        <div class="meta-stack">
-          <div class="meta-box"><span>latest proot commit</span><strong>5f780cba57ce7ce557a389e1572e0d30026fcbca</strong></div>
-          <div class="meta-box"><span>latest build date</span><strong>2026-04-27 22:05:29 UTC</strong></div>
-          <div class="meta-box"><span>what this is</span><strong>static proot release builds</strong></div>
+        <div class="snippet">
+          <p class="eyebrow">install</p>
+          <pre><code>curl -fsSL &quot;https://raw.githubusercontent.com/mkalmousli/proot-static-binaries/master/install.sh&quot; | sh</code></pre>
+          <div class="note">Hosted installer that picks the right binary for your arch and libc.</div>
         </div>
       </div>
     </section>
@@ -41,11 +41,11 @@
         <a class="button" href="https://github.com/mkalmousli/proot-static-binaries/releases/tag/v1">open on github</a>
       </div>
       <div class="release-meta">
-        <div class="meta-box"><span>proot commit</span><strong>5f780cba57ce7ce557a389e1572e0d30026fcbca</strong></div>
-        <div class="meta-box"><span>build date</span><strong>2026-04-27 22:05:29 UTC</strong></div>
+        <div class="meta-box"><span>proot commit</span><strong><a href="https://github.com/proot-me/proot/commit/5f780cba57ce7ce557a389e1572e0d30026fcbca">5f780cba57ce7ce557a389e1572e0d30026fcbca</a></strong></div>
+        <div class="meta-box"><span>build date</span><strong>2026-04-27 22:18:15 UTC</strong></div>
         <div class="meta-box"><span>tag</span><strong>v1</strong></div>
-        <div class="meta-box"><span>release</span><strong>download only</strong></div>
       </div>
+      <p class="download-note">musl builds are linked against musl libc and stay smaller. gnu builds use glibc and are usually a better fit for glibc-based systems.</p>
       <div class="tables">
         
       <table>
