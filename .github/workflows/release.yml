@@ -9,6 +9,8 @@ on:
     paths:
       - 'build.py'
       - '.github/workflows/**'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -163,7 +165,7 @@ jobs:
               "artifacts": artifacts,
           }
 
-          (release_dir / "info.json").write_text(json.dumps(info, indent=2) + "\\n", encoding="utf-8")
+          (release_dir / "info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -177,3 +179,29 @@ jobs:
             proot commit: ${{ needs.check-updates.outputs.proot_commit }}
             Build Date: ${{ steps.meta.outputs.build_date }}
           files: release-assets/*
+
+  site:
+    needs: [check-updates, release]
+    if: |
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'release' ||
+       (needs.release.result == 'success' && needs.check-updates.outputs.should_build == 'true'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build site
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 build_site.py
+      - name: Publish site
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./.site-build
