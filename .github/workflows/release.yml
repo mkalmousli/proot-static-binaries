@@ -138,8 +138,7 @@ jobs:
               "artifacts": artifacts,
           }
 
-          (release_dir / "info.json").write_text(json.dumps(info, indent=2) + "
-", encoding="utf-8")
+          (release_dir / "info.json").write_text(json.dumps(info, indent=2) + "\\n", encoding="utf-8")
           PY
       - name: Publish release
         uses: softprops/action-gh-release@v2
