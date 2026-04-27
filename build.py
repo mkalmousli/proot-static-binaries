@@ -361,7 +361,6 @@ def ensure_host_packages() -> None:
         "libpixman-1-dev",
         "zlib1g-dev",
         "python3-venv",
-        "python3-distlib",
         "python3-pip",
         "python3-setuptools",
     ]
@@ -653,8 +652,6 @@ def prepare_qemu(cache: CacheLayout, force: bool) -> Path:
         "--disable-docs",
         "--disable-werror",
         f"--prefix={install_dir}",
-        "--meson=meson",
-        "--ninja=ninja",
     ]
     configure_sig = sha256_of("\n".join(configure_cmd + [str(source), str(install_dir)]))
     build_sig = sha256_of(f"make\n{CPU_COUNT}\n{qemu_commit}\n{source}")
