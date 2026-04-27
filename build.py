@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -22,7 +23,7 @@ from posixpath import normpath
 
 ALPINE_VERSION = "3.20.5"
 UBUNTU_VERSION = "24.04.4"
-PROOT_COMMIT = os.environ.get("PROOT_COMMIT", os.environ.get("PROOT_REF"))
+PROOT_REF = os.environ.get("PROOT_TAG", os.environ.get("PROOT_REF", os.environ.get("PROOT_COMMIT")))
 QEMU_COMMIT = os.environ.get("QEMU_COMMIT", os.environ.get("QEMU_REF"))
 SOURCE_COMMITS: dict[str, str] = {}
 
@@ -260,6 +261,43 @@ def is_ubuntu_like() -> bool:
         return False
     text = os_release.read_text(encoding="utf-8", errors="ignore").lower()
     return "ubuntu" in text or "debian" in text
+
+
+def version_key(value: str) -> tuple[Any, ...]:
+    parts: list[Any] = []
+    for chunk in re.split(r"(\d+)", value):
+        if not chunk:
+            continue
+        if chunk.isdigit():
+            parts.append(int(chunk))
+        else:
+            parts.append(chunk)
+    return tuple(parts)
+
+
+def resolve_repo_ref(repo: str, override: str | None) -> str:
+    if override:
+        return override
+    cached = SOURCE_COMMITS.get(repo)
+    if cached:
+        return cached
+
+    output = subprocess.check_output(["git", "ls-remote", "--tags", "--refs", f"https://github.com/{repo}.git"], text=True)
+    tags = []
+    for line in output.splitlines():
+        _, ref = line.split("\t", 1)
+        if not ref.startswith("refs/tags/"):
+            continue
+        tag = ref.removeprefix("refs/tags/")
+        if tag.endswith("^{}"):
+            continue
+        tags.append(tag)
+    if not tags:
+        raise RuntimeError(f"Failed to resolve tags for {repo}: {output!r}")
+    tag = sorted(tags, key=version_key)[-1]
+    SOURCE_COMMITS[repo] = tag
+    log("STEP", f"Resolved {repo} latest tag to {tag}", ctx=f"source:{repo}")
+    return tag
 
 
 def resolve_repo_commit(repo: str, override: str | None) -> str:
@@ -510,8 +548,7 @@ def source_ready(repo: str, src_dir: Path) -> bool:
 def source_archive_url(repo: str, ref: str) -> str:
     if is_commitish(ref):
         return f"https://github.com/{repo}/archive/{ref}.tar.gz"
-    kind = 'tags' if ref.startswith('v') else 'heads'
-    return f"https://github.com/{repo}/archive/refs/{kind}/{ref}.tar.gz"
+    return f"https://github.com/{repo}/archive/refs/tags/{ref}.tar.gz"
 
 
 def prepare_source_archive(cache: CacheLayout, repo: str, ref: str, force: bool) -> Path:
@@ -543,15 +580,15 @@ def prepare_proot(cache: CacheLayout, force: bool) -> Path:
     out_bin = cache.tooling / "proot"
     out_stamp = cache.tooling / ".proot.stamp"
     build_ctx = f"{ctx_step('tooling', 1, 2)}:{ctx_step('proot', 1, 1)}"
-    proot_commit = resolve_repo_commit("proot-me/proot", PROOT_COMMIT)
+    proot_tag = resolve_repo_ref("proot-me/proot", PROOT_REF)
     if out_bin.exists() and not force:
         if not out_stamp.exists():
-            write_stamp(out_stamp, proot_commit)
-        log("CACHE", f"Using cached built proot from {proot_commit[:8]}", ctx=build_ctx)
+            write_stamp(out_stamp, proot_tag)
+        log("CACHE", f"Using cached built proot from {proot_tag}", ctx=build_ctx)
         return out_bin
 
-    source = prepare_source_archive(cache, "proot-me/proot", proot_commit, force)
-    build_version = proot_commit[:8]
+    source = prepare_source_archive(cache, "proot-me/proot", proot_tag, force)
+    build_version = proot_tag
     patch_proot_gnumakefile(source, build_version)
     log("STEP", "Building host proot from source", ctx=build_ctx)
     run(["make", "-C", str(source / "src"), "clean"], ctx=build_ctx)
@@ -564,13 +601,13 @@ def prepare_proot(cache: CacheLayout, force: bool) -> Path:
     out_bin.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(built, out_bin)
     out_bin.chmod(0o755)
-    write_stamp(out_stamp, proot_commit)
+    write_stamp(out_stamp, proot_tag)
     return out_bin
 
 
 def prepare_qemu(cache: CacheLayout, force: bool) -> Path:
     qemu_ctx = f"{ctx_step('tooling', 2, 2)}:{ctx_step('qemu', 1, 3)}"
-    qemu_commit = resolve_repo_commit("qemu/qemu", QEMU_COMMIT)
+    qemu_commit = resolve_repo_ref("qemu/qemu", QEMU_COMMIT)
     source = prepare_source_archive(cache, "qemu/qemu", qemu_commit, force)
     build_dir = cache.tooling / f"qemu-build-{qemu_commit}"
     install_dir = cache.tooling / f"qemu-install-{qemu_commit}"
@@ -732,9 +769,9 @@ def build_target(
 
     log("STEP", f"Preparing target environment: {target.name} ({libc})", ctx=target_ctx)
     rootfs = prepare_rootfs(cache, target, libc, force, ctx=f"{target_ctx}:{ctx_step('rootfs', 1, 3)}")
-    proot_commit = resolve_repo_commit("proot-me/proot", PROOT_COMMIT)
-    source = prepare_source_archive(cache, "proot-me/proot", proot_commit, force)
-    build_version = proot_commit[:8]
+    proot_tag = resolve_repo_ref("proot-me/proot", PROOT_REF)
+    source = prepare_source_archive(cache, "proot-me/proot", proot_tag, force)
+    build_version = proot_tag
     patch_proot_gnumakefile(source, build_version)
 
     work_target = cache.temps / f"work-{target.name}-{libc}"

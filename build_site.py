@@ -454,6 +454,9 @@ def proot_commit(release: dict[str, Any]) -> str:
     value = str(info.get("proot_commit") or "").strip()
     if value:
         return value
+    value = body_value(release, "proot commit")
+    if value:
+        return value
     value = body_value(release, "proot")
     if value:
         return value

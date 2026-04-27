@@ -19,32 +19,54 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
+      proot_tag: ${{ steps.check.outputs.proot_tag }}
       proot_commit: ${{ steps.check.outputs.proot_commit }}
-      next_version: ${{ steps.check.outputs.next_version }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for updates
         id: check
         shell: bash
         run: |
-          set -e
-          PROOT_COMMIT=$(git ls-remote https://github.com/proot-me/proot.git HEAD | cut -f1)
+          set -euo pipefail
+          UPSTREAM_TAGS=$(git ls-remote --tags --refs https://github.com/proot-me/proot.git | awk '{print $2}' | sed 's#refs/tags/##' | sort -V)
           LATEST_RELEASE=$(curl -fsS https://api.github.com/repos/${{ github.repository }}/releases/latest || true)
-          LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name // "v0"' 2>/dev/null || echo "v0")
           LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""' 2>/dev/null || echo "")
+          LATEST_PROOT_TAG=$(printf '%s\n' "$LATEST_BODY" | awk -F': ' '/^proot tag: /{print $2; exit}')
 
-          VERSION_NUM=$(echo "${LATEST_TAG#v}" | grep -E '^[0-9]+$' || echo "0")
-          NEXT_VERSION=$((VERSION_NUM + 1))
+          NEXT_TAG=""
+          if [[ -n "$LATEST_PROOT_TAG" ]]; then
+            seen_current="false"
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              if [[ "$seen_current" == "true" ]]; then
+                NEXT_TAG="$tag"
+                break
+              fi
+              if [[ "$tag" == "$LATEST_PROOT_TAG" ]]; then
+                seen_current="true"
+              fi
+            done <<< "$UPSTREAM_TAGS"
+          else
+            NEXT_TAG=$(printf '%s\n' "$UPSTREAM_TAGS" | sed '/^$/d' | head -n1)
+          fi
+
           SHOULD_BUILD="true"
-
-          if [[ "$LATEST_BODY" == *"$PROOT_COMMIT"* ]]; then
-            echo "No new proot commit detected; skipping build."
+          if [[ -z "$NEXT_TAG" ]]; then
+            echo "No new proot tag detected; skipping build."
             SHOULD_BUILD="false"
           fi
 
-          echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
+          PROOT_COMMIT=""
+          if [[ -n "$NEXT_TAG" ]]; then
+            PROOT_COMMIT=$(git ls-remote https://github.com/proot-me/proot.git "refs/tags/${NEXT_TAG}^{}" | cut -f1 || true)
+            if [[ -z "$PROOT_COMMIT" ]]; then
+              PROOT_COMMIT=$(git ls-remote https://github.com/proot-me/proot.git "refs/tags/${NEXT_TAG}" | cut -f1 || true)
+            fi
+          fi
+
+          echo "proot_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
           echo "proot_commit=$PROOT_COMMIT" >> $GITHUB_OUTPUT
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
 
   build:
     needs: check-updates
@@ -70,6 +92,7 @@ jobs:
             ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-
       - name: Build static proot
         env:
+          PROOT_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
         run: |
           python3 build.py --arch ${{ matrix.arch }} --${{ matrix.libc }} --parallel 1
@@ -100,7 +123,8 @@ jobs:
         shell: bash
         env:
           REPOSITORY: ${{ github.repository }}
-          RELEASE_TAG: v${{ needs.check-updates.outputs.next_version }}
+          RELEASE_TAG: ${{ needs.check-updates.outputs.proot_tag }}
+          PROOT_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
           BUILD_DATE: ${{ steps.meta.outputs.build_date }}
         run: |
@@ -132,6 +156,7 @@ jobs:
           info = {
               "repository": os.environ["REPOSITORY"],
               "tag": os.environ["RELEASE_TAG"],
+              "proot_tag": os.environ["PROOT_TAG"],
               "proot_commit": os.environ["PROOT_COMMIT"],
               "build_date": os.environ["BUILD_DATE"],
               "generated_at": os.environ["BUILD_DATE"],
@@ -143,11 +168,12 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check-updates.outputs.next_version }}
-          name: Release v${{ needs.check-updates.outputs.next_version }}
+          tag_name: ${{ needs.check-updates.outputs.proot_tag }}
+          name: Release ${{ needs.check-updates.outputs.proot_tag }}
           body: |
             Automated build of static proot binaries.
 
-            proot: ${{ needs.check-updates.outputs.proot_commit }}
+            proot tag: ${{ needs.check-updates.outputs.proot_tag }}
+            proot commit: ${{ needs.check-updates.outputs.proot_commit }}
             Build Date: ${{ steps.meta.outputs.build_date }}
           files: release-assets/*
