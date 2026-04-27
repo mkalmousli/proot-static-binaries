@@ -361,6 +361,7 @@ def ensure_host_packages() -> None:
         "libpixman-1-dev",
         "zlib1g-dev",
         "python3-venv",
+        "python3-distlib",
     ]
 
     prefix = [] if os.geteuid() == 0 else ["sudo"]
