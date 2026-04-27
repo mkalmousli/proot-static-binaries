@@ -58,26 +58,26 @@ a {
   padding: 0.35rem 0 0.75rem;
 }
 
-.hero,
+.intro,
 .release {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 0;
 }
 
-.hero {
-  padding: 1.25rem;
+.intro {
+  padding: 1rem;
   margin-bottom: 0.4rem;
 }
 
 .release {
-  padding: 1rem 1.05rem;
+  padding: 0.95rem 1rem;
   margin-top: 0.4rem;
 }
 
-.hero-top {
+.intro-top {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -150,6 +150,10 @@ h1 {
   margin-top: 0.8rem;
 }
 
+.hero-links {
+  margin-top: 0.7rem;
+}
+
 .pill,
 .button {
   display: inline-flex;
@@ -169,7 +173,7 @@ h1 {
 
 .versions {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.55rem;
 }
 
 .release-head {
@@ -177,7 +181,7 @@ h1 {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.6rem;
 }
 
 .release-head h2 {
@@ -206,9 +210,9 @@ h1 {
 
 .release-meta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
-  margin: 0.8rem 0 0.9rem;
+  margin: 0.7rem 0 0.65rem;
 }
 
 .release-meta .meta-box {
@@ -219,6 +223,34 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.download-note {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.snippet {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  padding: 0.75rem;
+}
+
+.snippet pre {
+  margin: 0;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.snippet code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.snippet .eyebrow {
+  margin-bottom: 0.4rem;
 }
 
 table {
@@ -264,7 +296,7 @@ td.download {
 }
 
 @media (max-width: 960px) {
-  .hero-top,
+  .intro-top,
   .release-meta,
   .tables {
     grid-template-columns: 1fr;
@@ -277,7 +309,7 @@ td.download {
     padding-top: 0.25rem;
   }
 
-  .hero,
+  .intro,
   .release {
     padding: 0.8rem;
   }
@@ -399,6 +431,28 @@ def human_size(size: Any) -> str:
             return f"{int(value)} B" if unit == "B" else f"{value:.1f} {unit}"
         value /= 1024
     return "unknown"
+
+
+def curl_script(repo: str) -> str:
+    return f"""repo="{repo}"
+arch="$(uname -m)"
+case "$arch" in
+  x86_64|amd64) arch="x86_64" ;;
+  aarch64|arm64) arch="aarch64" ;;
+  armv7l|armv7*) arch="armv7" ;;
+  *) echo "unsupported arch: $arch" >&2; exit 1 ;;
+esac
+
+libc="musl"
+if ldd --version 2>&1 | head -n1 | grep -qiE 'glibc|gnu'; then
+  libc="gnu"
+fi
+
+asset="proot-${{arch}}-${{libc}}"
+url="$(curl -fsSL "https://api.github.com/repos/${{repo}}/releases/latest" | sed -n "s/.*\\"browser_download_url\\": *\\"\\([^\\"]*${{asset}}[^\\"]*\\)\\".*/\\1/p" | head -n1)"
+curl -fsSL "$url" -o proot
+chmod +x proot
+"""
 
 
 def body_value(release: dict[str, Any], key: str) -> str | None:
@@ -543,8 +597,14 @@ def page_shell(title: str, body: str) -> str:
 def release_section(release: dict[str, Any], repo_url: str, current: bool = False) -> str:
     tag_name = str(release.get("tag_name") or "release")
     tag = escape(tag_name)
-    commit = escape(proot_commit(release))
+    commit_value = proot_commit(release)
+    commit = escape(commit_value)
     date = escape(build_date(release))
+    commit_link = (
+        f'<a href="https://github.com/proot-me/proot/commit/{escape(commit_value)}">{commit}</a>'
+        if re.fullmatch(r"[0-9a-fA-F]{7,40}", commit_value)
+        else commit
+    )
     release_url = f"{repo_url}/releases/tag/{tag_name}"
     badge = '<span class="current-tag">current</span>' if current else ""
 
@@ -557,11 +617,11 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
         <a class="button" href="{escape(release_url)}">open on github</a>
       </div>
       <div class="release-meta">
-        <div class="meta-box"><span>proot commit</span><strong>{commit}</strong></div>
+        <div class="meta-box"><span>proot commit</span><strong>{commit_link}</strong></div>
         <div class="meta-box"><span>build date</span><strong>{date}</strong></div>
         <div class="meta-box"><span>tag</span><strong>{tag}</strong></div>
-        <div class="meta-box"><span>release</span><strong>download only</strong></div>
       </div>
+      <p class="download-note">musl builds are linked against musl libc and stay smaller. gnu builds use glibc and are usually a better fit for glibc-based systems.</p>
       <div class="tables">
         {download_table(release, "musl")}
         {download_table(release, "gnu")}
@@ -570,19 +630,7 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
     """
 
 
-def index_page(releases_list: list[dict[str, Any]], repo_url: str) -> str:
-    latest = releases_list[0] if releases_list else None
-    if latest:
-        latest_tag = escape(str(latest.get("tag_name") or "release"))
-        latest_commit = escape(proot_commit(latest))
-        latest_date = escape(build_date(latest))
-        latest_github = f"{repo_url}/releases/tag/{str(latest.get('tag_name') or 'release')}"
-    else:
-        latest_tag = "release"
-        latest_commit = "unknown"
-        latest_date = "unknown"
-        latest_github = f"{repo_url}/releases"
-
+def index_page(releases_list: list[dict[str, Any]], repo_url: str, repo_slug_value: str) -> str:
     versions = "\n".join(
         release_section(release, repo_url, current=index == 0)
         for index, release in enumerate(releases_list)
@@ -590,21 +638,19 @@ def index_page(releases_list: list[dict[str, Any]], repo_url: str) -> str:
 
     body = f"""
   <main class="shell">
-    <section class="hero">
-      <div class="hero-top">
+    <section class="intro">
+      <div class="intro-top">
         <div>
           <p class="eyebrow">proot static binaries</p>
-          <h1>{latest_tag}</h1>
-          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases. The page below lists every release directly, with commit, build date, download sizes, and links.</p>
+          <h1>proot static binaries</h1>
+          <p class="lede">This project builds static proot binaries from upstream proot commits and publishes them as GitHub Releases.</p>
           <div class="hero-links">
-            <a class="hero-link" href="#versions">jump to versions</a>
-            <a class="button" href="{escape(latest_github)}">open latest on github</a>
+            <a class="button" href="{escape(repo_url)}">github repo</a>
           </div>
         </div>
-        <div class="meta-stack">
-          <div class="meta-box"><span>latest proot commit</span><strong>{latest_commit}</strong></div>
-          <div class="meta-box"><span>latest build date</span><strong>{latest_date}</strong></div>
-          <div class="meta-box"><span>what this is</span><strong>static proot release builds</strong></div>
+        <div class="snippet">
+          <p class="eyebrow">quick curl</p>
+          <pre><code>{escape(curl_script(repo_slug_value))}</code></pre>
         </div>
       </div>
     </section>
@@ -639,7 +685,7 @@ def main() -> int:
     changed = False
     changed |= write_if_changed(OUT_DIR / "style.css", CSS + "\n")
     changed |= write_if_changed(OUT_DIR / ".nojekyll", "")
-    changed |= write_if_changed(OUT_DIR / "index.html", index_page(release_list, repo_url))
+    changed |= write_if_changed(OUT_DIR / "index.html", index_page(release_list, repo_url, repo))
 
     print(f"{'Generated' if changed else 'No changes for'} {OUT_DIR.relative_to(ROOT)}")
     return 0
