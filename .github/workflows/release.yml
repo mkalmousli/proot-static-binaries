@@ -33,26 +33,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          UPSTREAM_TAGS=$(git ls-remote --tags --refs https://github.com/proot-me/proot.git | awk '{print $2}' | sed 's#refs/tags/##' | grep '^v[0-9]' | sort -V)
+          UPSTREAM_TAGS=$(git ls-remote --tags --refs https://github.com/proot-me/proot.git | awk '{print $2}' | sed 's#refs/tags/##' | grep '^v[5-9]' | sort -V)
           LATEST_RELEASE=$(curl -fsS https://api.github.com/repos/${{ github.repository }}/releases/latest || true)
           LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""' 2>/dev/null || echo "")
           LATEST_PROOT_TAG=$(printf '%s\n' "$LATEST_BODY" | awk -F': ' '/^proot tag: /{print $2; exit}')
 
           NEXT_TAG=""
+          LATEST_UPSTREAM=$(printf '%s\n' "$UPSTREAM_TAGS" | tail -n1)
+
           if [[ -n "$LATEST_PROOT_TAG" ]]; then
-            seen_current="false"
-            while IFS= read -r tag; do
-              [[ -z "$tag" ]] && continue
-              if [[ "$seen_current" == "true" ]]; then
-                NEXT_TAG="$tag"
-                break
+            if [[ "$LATEST_PROOT_TAG" == "$LATEST_UPSTREAM" ]]; then
+              echo "Already at the latest tag: $LATEST_UPSTREAM"
+            else
+              seen_current="false"
+              while IFS= read -r tag; do
+                [[ -z "$tag" ]] && continue
+                if [[ "$seen_current" == "true" ]]; then
+                  NEXT_TAG="$tag"
+                  break
+                fi
+                if [[ "$tag" == "$LATEST_PROOT_TAG" ]]; then
+                  seen_current="true"
+                fi
+              done <<< "$UPSTREAM_TAGS"
+              
+              if [[ "$seen_current" == "false" ]]; then
+                echo "Current tag $LATEST_PROOT_TAG not found in filtered upstream; defaulting to latest $LATEST_UPSTREAM"
+                NEXT_TAG="$LATEST_UPSTREAM"
               fi
-              if [[ "$tag" == "$LATEST_PROOT_TAG" ]]; then
-                seen_current="true"
-              fi
-            done <<< "$UPSTREAM_TAGS"
+            fi
           else
-            NEXT_TAG=$(printf '%s\n' "$UPSTREAM_TAGS" | sed '/^$/d' | head -n1)
+            echo "No previous release tag found; starting with latest $LATEST_UPSTREAM"
+            NEXT_TAG="$LATEST_UPSTREAM"
           fi
 
           SHOULD_BUILD="true"
