@@ -30,9 +30,9 @@ a {
 }
 
 .shell {
-  width: min(1260px, calc(100% - 1rem));
+  width: min(1560px, calc(100% - 0.75rem));
   margin: 0 auto;
-  padding: 0.5rem 0 1rem;
+  padding: 0.35rem 0 0.75rem;
 }
 
 .hero,
@@ -49,14 +49,14 @@ a {
 }
 
 .hero {
-  padding: 1.25rem;
-  margin-bottom: 0.5rem;
+  padding: 1.4rem;
+  margin-bottom: 0.4rem;
 }
 
 .hero-top {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.95fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.65fr) minmax(310px, 0.95fr);
+  gap: 1.1rem;
   align-items: start;
 }
 
@@ -66,7 +66,7 @@ a {
 
 .panel,
 .detail {
-  padding: 0.95rem 1rem;
+  padding: 1rem 1.05rem;
 }
 
 .eyebrow,
@@ -146,6 +146,17 @@ h1 {
   font-size: 0.9rem;
 }
 
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0.28rem 0.75rem;
+  border: 1px solid var(--line);
+  background: #171a20;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
 .hero-links,
 .meta-links {
   display: flex;
@@ -183,10 +194,10 @@ h1 {
 
 .version-row {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr 0.9fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.7fr) minmax(160px, 0.6fr) 120px;
   gap: 0.75rem;
   align-items: center;
-  padding: 0.55rem 0;
+  padding: 0.68rem 0;
   border-top: 1px solid var(--line);
   font-size: 0.95rem;
 }
@@ -195,7 +206,29 @@ h1 {
   border-top: 0;
 }
 
-.version-row span:last-child {
+.version-row strong {
+  display: block;
+  font-size: 1.02rem;
+}
+
+.version-row .current-tag {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.version-row .commit,
+.version-row .date {
+  color: var(--muted);
+}
+
+.version-row .actions {
   justify-self: end;
 }
 
@@ -206,7 +239,7 @@ h1 {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -214,6 +247,55 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.libc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.matrix caption {
+  padding: 0.75rem 0.8rem 0.5rem;
+  text-align: left;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.matrix th,
+.matrix td {
+  padding: 0.62rem 0.8rem;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.matrix th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.matrix td.size,
+.matrix td.download {
+  white-space: nowrap;
+}
+
+.matrix td.download {
+  text-align: right;
+}
+
+.matrix .muted-cell {
+  color: var(--muted);
 }
 
 .note {
@@ -227,6 +309,10 @@ h1 {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+
+  .libc-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -238,7 +324,7 @@ h1 {
   .hero,
   .panel,
   .detail {
-    padding: 0.85rem;
+    padding: 0.8rem;
   }
 
   h1 {
@@ -250,7 +336,7 @@ h1 {
     gap: 0.15rem;
   }
 
-  .version-row span:last-child {
+  .version-row .actions {
     justify-self: start;
   }
 }
