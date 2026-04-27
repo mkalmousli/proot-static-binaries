@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 env:
-  QEMU_VERSION: v11.0.0
+  QEMU_VERSION: v9.2.2
 
 jobs:
   check-updates:

@@ -24,7 +24,7 @@ from posixpath import normpath
 
 ALPINE_VERSION = "3.20.5"
 UBUNTU_VERSION = "24.04.4"
-QEMU_VERSION = "v11.0.0"
+QEMU_VERSION = "v9.2.2"
 PROOT_REF = os.environ.get("PROOT_TAG", os.environ.get("PROOT_REF", os.environ.get("PROOT_COMMIT")))
 QEMU_COMMIT = os.environ.get("QEMU_COMMIT", os.environ.get("QEMU_REF", QEMU_VERSION))
 SOURCE_COMMITS: dict[str, str] = {}
