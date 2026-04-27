@@ -28,37 +28,37 @@ jobs:
       qemu_commit: ${{ steps.check.outputs.qemu_commit }}
       next_version: ${{ steps.check.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Check for updates
-        id: check
-        shell: bash
-        run: |
-          set -e
-          PROOT_COMMIT=$(git ls-remote https://github.com/proot-me/proot.git HEAD | cut -f1)
-          QEMU_COMMIT=$(git ls-remote https://github.com/qemu/qemu.git HEAD | cut -f1)
-          
-          echo "Current proot commit: $PROOT_COMMIT"
-          echo "Current qemu commit: $QEMU_COMMIT"
-          
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
-          LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name // "v0"')
-          LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""')
-          
-          VERSION_NUM=$(echo "${LATEST_TAG#v}" | grep -E '^[0-9]+$' || echo "0")
-          NEXT_VERSION=$((VERSION_NUM + 1))
-          
-          SHOULD_BUILD="true"
-          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.inputs.force }}" != "true" ]]; then
-            if [[ "$LATEST_BODY" == *"$PROOT_COMMIT"* ]] && [[ "$LATEST_BODY" == *"$QEMU_COMMIT"* ]]; then
-              echo "No updates found in proot or qemu since last release ($LATEST_TAG)."
-              SHOULD_BUILD="false"
+        - uses: actions/checkout@v4
+        - name: Check for updates
+          id: check
+          shell: bash
+          run: |
+            set -e
+            PROOT_COMMIT=$(git ls-remote https://github.com/proot-me/proot.git HEAD | cut -f1)
+            QEMU_COMMIT=$(git ls-remote https://github.com/qemu/qemu.git HEAD | cut -f1)
+
+            echo "Current proot commit: $PROOT_COMMIT"
+            echo "Current qemu commit: $QEMU_COMMIT"
+
+            LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
+            LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name // "v0"')
+            LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""')
+
+            VERSION_NUM=$(echo "${LATEST_TAG#v}" | grep -E '^[0-9]+$' || echo "0")
+            NEXT_VERSION=$((VERSION_NUM + 1))
+
+            SHOULD_BUILD="true"
+            if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.inputs.force }}" != "true" ]]; then
+              if [[ "$LATEST_BODY" == *"$PROOT_COMMIT"* ]] && [[ "$LATEST_BODY" == *"$QEMU_COMMIT"* ]]; then
+                echo "No updates found in proot or qemu since last release ($LATEST_TAG)."
+                SHOULD_BUILD="false"
+              fi
             fi
-          fi
-          
-          echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
-          echo "proot_commit=$PROOT_COMMIT" >> $GITHUB_OUTPUT
-          echo "qemu_commit=$QEMU_COMMIT" >> $GITHUB_OUTPUT
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+            echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
+            echo "proot_commit=$PROOT_COMMIT" >> $GITHUB_OUTPUT
+            echo "qemu_commit=$QEMU_COMMIT" >> $GITHUB_OUTPUT
+            echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
   build:
     needs: check-updates
@@ -70,41 +70,46 @@ jobs:
         arch: [x86_64, aarch64, armv7]
         libc: [musl, gnu]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install host build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential make file pkg-config git ninja-build meson bison flex \
-            libtalloc-dev \
-            libglib2.0-dev libpixman-1-dev zlib1g-dev
-
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: .Cache
-          key: ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-${{ hashFiles('build.py') }}
-          restore-keys: |
-            ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-
-
-      - name: Build static proot
-        env:
-          PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
-          QEMU_COMMIT: ${{ needs.check-updates.outputs.qemu_commit }}
-        run: |
-          python3 build.py --arch ${{ matrix.arch }} --${{ matrix.libc }} --parallel 1
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: proot-${{ matrix.arch }}-${{ matrix.libc }}
-          path: dist/proot-${{ matrix.arch }}-${{ matrix.libc }}
+        - uses: actions/checkout@v4
+        - name: Setup Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
+        - name: Install host build dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              build-essential \
+                make \
+                file \
+                pkg-config \
+                git \
+                ninja-build \
+                meson \
+                bison \
+                flex \
+                libtalloc-dev \
+                libglib2.0-dev \
+                libpixman-1-dev \
+                zlib1g-dev
+        - name: Restore cache
+          uses: actions/cache@v4
+          with:
+            path: .Cache
+            key: ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-${{ hashFiles('build.py') }}
+            restore-keys: |
+              ${{ runner.os }}-proot-cache-${{ matrix.arch }}-${{ matrix.libc }}-
+        - name: Build static proot
+          env:
+            PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
+            QEMU_COMMIT: ${{ needs.check-updates.outputs.qemu_commit }}
+          run: |
+            python3 build.py --arch ${{ matrix.arch }} --${{ matrix.libc }} --parallel 1
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: proot-${{ matrix.arch }}-${{ matrix.libc }}
+            path: dist/proot-${{ matrix.arch }}-${{ matrix.libc }}
 
   release:
     needs: [check-updates, build]
@@ -112,23 +117,26 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          pattern: proot-*
-          merge-multiple: true
+        - name: Download artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: release-assets
+            pattern: proot-*
+            merge-multiple: true
+        - name: Capture build date
+          id: meta
+          shell: bash
+          run: |
+            echo "build_date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+        - name: Publish release
+          uses: softprops/action-gh-release@v2
+          with:
+            tag_name: v${{ needs.check-updates.outputs.next_version }}
+            name: Release v${{ needs.check-updates.outputs.next_version }}
+            body: |
+              Automated build of static proot binaries.
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.check-updates.outputs.next_version }}
-          name: Release v${{ needs.check-updates.outputs.next_version }}
-          body: |
-            Automated build of static proot binaries.
-            
-            **Components:**
-            - proot: ${{ needs.check-updates.outputs.proot_commit }}
-            - qemu: ${{ needs.check-updates.outputs.qemu_commit }}
-            - Build Date: $(date -u +'%Y-%m-%d %H:%M:%S' UTC)
-          files: release-assets/*
+              **Components:**
+              - proot: ${{ needs.check-updates.outputs.proot_commit }}
+              - Build Date: ${{ steps.meta.outputs.build_date }}
+            files: release-assets/*
