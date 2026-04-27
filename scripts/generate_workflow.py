@@ -86,6 +86,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \\
             build-essential make file pkg-config git ninja-build meson bison flex \\
+            libtalloc-dev \\
             libglib2.0-dev libpixman-1-dev zlib1g-dev
 
       - name: Restore cache

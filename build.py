@@ -316,6 +316,7 @@ def ensure_host_packages() -> None:
         "meson",
         "bison",
         "flex",
+        "libtalloc-dev",
         "libglib2.0-dev",
         "libpixman-1-dev",
         "zlib1g-dev",
