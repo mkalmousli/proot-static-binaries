@@ -210,7 +210,7 @@ h1 {
 
 .release-meta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem;
   margin: 0.7rem 0 0.65rem;
 }
@@ -475,6 +475,17 @@ def qemu_version(release: dict[str, Any]) -> str:
     return "unknown"
 
 
+def project_commit(release: dict[str, Any]) -> str:
+    info = release_info(release)
+    value = str(info.get("project_commit") or "").strip()
+    if value:
+        return value
+    value = body_value(release, "project commit")
+    if value:
+        return value
+    return "unknown"
+
+
 def build_date(release: dict[str, Any]) -> str:
     info = release_info(release)
     value = str(info.get("build_date") or "").strip()
@@ -602,11 +613,18 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
     commit_value = proot_commit(release)
     commit = escape(commit_value)
     qemu = escape(qemu_version(release))
+    p_commit_value = project_commit(release)
+    p_commit = escape(p_commit_value)
     date = escape(build_date(release))
     commit_link = (
         f'<a href="https://github.com/proot-me/proot/commit/{escape(commit_value)}">{commit}</a>'
         if re.fullmatch(r"[0-9a-fA-F]{7,40}", commit_value)
         else commit
+    )
+    p_commit_link = (
+        f'<a href="https://github.com/mkalmousli/proot-static-binaries/commit/{escape(p_commit_value)}">{p_commit[:8] if len(p_commit_value) > 8 else p_commit}</a>'
+        if re.fullmatch(r"[0-9a-fA-F]{7,40}", p_commit_value)
+        else p_commit
     )
     release_url = f"{repo_url}/releases/tag/{tag_name}"
     badge = '<span class="current-tag">current</span>' if current else ""
@@ -622,6 +640,7 @@ def release_section(release: dict[str, Any], repo_url: str, current: bool = Fals
       <div class="release-meta">
         <div class="meta-box"><span>proot commit</span><strong>{commit_link}</strong></div>
         <div class="meta-box"><span>qemu version</span><strong>{qemu}</strong></div>
+        <div class="meta-box"><span>project commit</span><strong>{p_commit_link}</strong></div>
         <div class="meta-box"><span>build date</span><strong>{date}</strong></div>
         <div class="meta-box"><span>tag</span><strong>{tag}</strong></div>
       </div>

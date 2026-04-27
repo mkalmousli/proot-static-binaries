@@ -145,6 +145,7 @@ jobs:
           PROOT_TAG: ${{ needs.check-updates.outputs.proot_tag }}
           PROOT_COMMIT: ${{ needs.check-updates.outputs.proot_commit }}
           QEMU_VERSION: ${{ env.QEMU_VERSION }}
+          PROJECT_COMMIT: ${{ github.sha }}
           BUILD_DATE: ${{ steps.meta.outputs.build_date }}
         run: |
           python3 - <<'PY'
@@ -178,6 +179,7 @@ jobs:
               "proot_tag": os.environ["PROOT_TAG"],
               "proot_commit": os.environ["PROOT_COMMIT"],
               "qemu_version": os.environ["QEMU_VERSION"],
+              "project_commit": os.environ["PROJECT_COMMIT"],
               "build_date": os.environ["BUILD_DATE"],
               "generated_at": os.environ["BUILD_DATE"],
               "artifacts": artifacts,
@@ -196,6 +198,7 @@ jobs:
             proot tag: ${{ needs.check-updates.outputs.proot_tag }}
             proot commit: ${{ needs.check-updates.outputs.proot_commit }}
             qemu version: ${{ env.QEMU_VERSION }}
+            project commit: ${{ github.sha }}
             Build Date: ${{ steps.meta.outputs.build_date }}
           files: release-assets/*
 
