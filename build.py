@@ -24,7 +24,7 @@ from posixpath import normpath
 
 ALPINE_VERSION = "3.20.5"
 UBUNTU_VERSION = "24.04.4"
-QEMU_VERSION = "v9.2.2"
+QEMU_VERSION = "v10.2.2"
 PROOT_REF = os.environ.get("PROOT_TAG", os.environ.get("PROOT_REF", os.environ.get("PROOT_COMMIT")))
 QEMU_COMMIT = os.environ.get("QEMU_COMMIT", os.environ.get("QEMU_REF", QEMU_VERSION))
 SOURCE_COMMITS: dict[str, str] = {}
@@ -220,11 +220,15 @@ def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = No
 
     queue: Queue[tuple[str, str] | tuple[str, None]] = Queue()
 
-    def pump(stream_name: str, pipe: object) -> None:
-        assert pipe is not None
-        for raw_line in pipe:
-            queue.put((stream_name, raw_line.rstrip("\n")))
-        queue.put((stream_name, None))
+    def pump(stream_name: str, pipe: Any) -> None:
+        try:
+            while True:
+                line = pipe.readline()
+                if not line:
+                    break
+                queue.put((stream_name, line.rstrip("\n")))
+        finally:
+            queue.put((stream_name, None))
 
     threads = [
         threading.Thread(target=pump, args=("OUT", process.stdout), daemon=True),
