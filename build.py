@@ -13,6 +13,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import time
 import urllib.request
 from datetime import datetime
 from queue import Empty, Queue
@@ -498,28 +499,47 @@ def resumable_download(url: str, full_dir: Path, part_dir: Path, force: bool = F
         log("CACHE", f"Using cached download: {final_path.name}", ctx="download")
         return final_path
 
-    downloaded = part_path.stat().st_size if part_path.exists() else 0
-    headers = {}
-    if downloaded > 0:
-        headers["Range"] = f"bytes={downloaded}-"
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            downloaded = part_path.stat().st_size if part_path.exists() else 0
+            headers = {}
+            if downloaded > 0:
+                headers["Range"] = f"bytes={downloaded}-"
 
-    req = urllib.request.Request(url, headers=headers)
-    log("DL", f"Downloading: {url}", ctx="download")
-    with urllib.request.urlopen(req) as resp:
-        status = getattr(resp, "status", 200)
-        if status == 206:
-            mode = "ab"
-        elif status == 200:
-            mode = "wb"
-        else:
-            raise RuntimeError(f"Unexpected HTTP status {status} for {url}")
+            req = urllib.request.Request(url, headers=headers)
+            log("DL", f"Downloading: {url} (attempt {attempt + 1}/{max_retries})", ctx="download")
+            
+            with urllib.request.urlopen(req) as resp:
+                status = getattr(resp, "status", 200)
+                if status == 206:
+                    mode = "ab"
+                elif status == 200:
+                    mode = "wb"
+                else:
+                    raise RuntimeError(f"Unexpected HTTP status {status} for {url}")
 
-        with open(part_path, mode) as out:
-            while True:
-                chunk = resp.read(1024 * 1024)
-                if not chunk:
-                    break
-                out.write(chunk)
+                with open(part_path, mode) as out:
+                    while True:
+                        chunk = resp.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+            
+            # Successful download completion
+            break
+        except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+            if attempt == max_retries - 1:
+                raise
+            
+            # 502, 503, 504 are usually retryable
+            is_retryable = isinstance(exc, urllib.error.URLError) or (hasattr(exc, "code") and exc.code in (502, 503, 504))
+            if not is_retryable:
+                raise
+                
+            delay = 2 ** attempt
+            log("WARN", f"Download failed ({exc}). Retrying in {delay}s...", ctx="download")
+            time.sleep(delay)
 
     part_path.replace(final_path)
     log("DL", f"Saved: {final_path}", ctx="download")
