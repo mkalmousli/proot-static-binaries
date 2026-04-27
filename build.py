@@ -373,6 +373,9 @@ def ensure_host_packages() -> None:
     log("STEP", f"Installing missing host dependencies: {', '.join(missing)}")
     run(prefix + ["apt-get", "update"], ctx="deps")
     run(prefix + ["apt-get", "install", "-y", "--no-install-recommends", *apt_packages], ctx="deps")
+    
+    log("STEP", "Ensuring distlib is installed via pip")
+    run([sys.executable, "-m", "pip", "install", "distlib"], ctx="deps")
 
 
 def detect_host_arch() -> str:
@@ -851,7 +854,7 @@ def build_target(
     run_in_rootfs(proot_bin, rootfs, work_target, qemu_bin, [
         "/bin/sh",
         "-lc",
-        f"set -e; build_root={build_root}; rm -rf \"$build_root\"; mkdir -p \"$build_root\"; cp -a /src-host/. \"$build_root/\"; cd \"$build_root/src\"; make clean >/dev/null 2>&1 || true; : > .check_process_vm.res; : > .check_seccomp_filter.res; make -j {CPU_COUNT} VERSION={build_version} EXTRA_CFLAGS='-O2 -static -Wno-error' EXTRA_LDFLAGS='-static' proot; cp proot /work/proot",
+        f"set -e; build_root={build_root}; rm -rf \"$build_root\"; mkdir -p \"$build_root\"; cp -a /src-host/. \"$build_root/\"; cd \"$build_root/src\"; make clean >/dev/null 2>&1 || true; printf '1' > .check_process_vm.res; printf '1' > .check_seccomp_filter.res; make -j {CPU_COUNT} VERSION={build_version} EXTRA_CFLAGS='-O2 -static -Wno-error' EXTRA_LDFLAGS='-static' proot; cp proot /work/proot",
     ], ctx=build_ctx, extra_binds=[(source, "/src-host")])
 
     built = work_target / "proot"
