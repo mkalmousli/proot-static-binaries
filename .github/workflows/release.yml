@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          UPSTREAM_TAGS=$(git ls-remote --tags --refs https://github.com/proot-me/proot.git | awk '{print $2}' | sed 's#refs/tags/##' | sort -V)
+          UPSTREAM_TAGS=$(git ls-remote --tags --refs https://github.com/proot-me/proot.git | awk '{print $2}' | sed 's#refs/tags/##' | grep '^v[0-9]' | sort -V)
           LATEST_RELEASE=$(curl -fsS https://api.github.com/repos/${{ github.repository }}/releases/latest || true)
           LATEST_BODY=$(echo "$LATEST_RELEASE" | jq -r '.body // ""' 2>/dev/null || echo "")
           LATEST_PROOT_TAG=$(printf '%s\n' "$LATEST_BODY" | awk -F': ' '/^proot tag: /{print $2; exit}')
@@ -193,7 +193,7 @@ jobs:
       always() &&
       (github.event_name == 'workflow_dispatch' ||
        github.event_name == 'release' ||
-       (needs.release.result == 'success' && needs.check-updates.outputs.should_build == 'true'))
+       (needs.check-updates.outputs.should_build == 'true' && needs.release.result == 'success'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
